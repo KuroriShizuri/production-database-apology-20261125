@@ -46,7 +46,12 @@ def validate(text):
 
 
 def write_entry(directory):
-    """Write entry.txt into directory; return the path written."""
+    """Write entry.txt into directory; return the path written.
+
+    The line is validated again at write time so a bad line fails the
+    run with a clear message instead of producing a bad entry.txt.
+    """
+    validate(ENTRY)
     os.makedirs(directory, exist_ok=True)
     path = os.path.join(directory, "entry.txt")
     with open(path, "w", encoding="utf-8", newline="") as handle:
@@ -55,7 +60,12 @@ def write_entry(directory):
 
 
 def read_back(path):
-    """Read entry.txt back as bytes and compare with the entry."""
+    """Read entry.txt back as bytes and compare with the entry.
+
+    The file on disk is itself re-validated against the gate (non-empty,
+    at most 200 characters, single line) so a bad artifact can never
+    pass silently even if the in-memory line was fine.
+    """
     with open(path, "rb") as handle:
         raw = handle.read()
     if raw != ENTRY.encode("utf-8"):
@@ -63,6 +73,11 @@ def read_back(path):
             "round-trip mismatch: file is %d bytes, entry is %d bytes"
             % (len(raw), len(ENTRY.encode("utf-8")))
         )
+    try:
+        written = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ValueError("entry.txt is not valid UTF-8")
+    validate(written)
     return raw
 
 
